@@ -8,9 +8,9 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
-            "program": "danmaku2ass.py",
+            "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-o","a.ass", "-fn","MS PGothic","-fs","30","new2.xml"]
+            "args": ["-o","a.ass", "-fn", "MS PGothic", "-a", "0.8", "main.xml"]
         }
     ]
 }
