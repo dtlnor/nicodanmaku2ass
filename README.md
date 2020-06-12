@@ -6,16 +6,16 @@ What is it?
 
 NicoDanmaku2ASS converts comments from Niconico to ASS format so that you can play it with any media player supporting ASS subtitle.
 
-This software is free software released under GPL 3 license. There is no warranty to the extent permitted by law.
-
 This is a fork of original [Danmaku2ASS](https://github.com/m13253/danmaku2ass) to focus on Niconico only.
 
 The major improvement is it can show AA (ASCII Art) properly.
 
+Some old features (regex etc.) are NOT tested, but feel free to report bugs.
+
 How to use it?
 --------------
 
-First, you will have to get the XML or JSON file from Niconico, many software can help you get it. For example, [you-get](https://github.com/soimort/you-get) and [nicovideo-dl](http://sourceforge.jp/projects/nicovideo-dl/) and [NiconamaCommentViewer](https://www.posite-c.com/application/ncv/) for Niconama.
+First, you will have to get the XML or JSON file from Niconico, many software can help you get it. For example, [you-get](https://github.com/soimort/you-get), [nicovideo-dl](http://sourceforge.jp/projects/nicovideo-dl/) and [NiconamaCommentViewer](https://www.posite-c.com/application/ncv/) for Niconama.
 
 Then, execute `danmaku2ass`. You can see further instructions below.
 
@@ -47,11 +47,11 @@ optional arguments:
   -o OUTPUT, --output OUTPUT
                         Output file
   -s WIDTHxHEIGHT, --size WIDTHxHEIGHT
-                        Stage size in pixels
+                        Stage size in pixels (do not recommand changing. The default 683x384 is the best. Change font size instead)
   -fn FONT, --font FONT
-                        Specify font face [default: sans-serif]
+                        Specify font face [default: MS PGothic] (note: AA font is fixed)
   -fs SIZE, --fontsize SIZE
-                        Default font size [default: 25]
+                        Default font size [default: 25] (note: AA font size is fixed.)
   -a ALPHA, --alpha ALPHA
                         Text opacity
   -dm SECONDS, --duration-marquee SECONDS
@@ -70,5 +70,5 @@ optional arguments:
 Contributing
 ------------
 
-Any contribution is welcome. Any donation is welcome as well.
+Any contribution is welcome. ~~Any donation is welcome as well.~~
 
