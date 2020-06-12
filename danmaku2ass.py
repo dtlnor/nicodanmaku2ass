@@ -117,7 +117,18 @@ def ReadCommentsNiconico(f, fontsize):
                 color = color_important
             if is_aa:
                 size = 10
-            yield (max(int(comment.getAttribute('vpos')), 0) * 0.01, int(comment.getAttribute('date')), int(comment.getAttribute('no')), c, pos, color, size, (c.count('\n') + 1) * size, CalculateLength(c) * size, is_aa)
+            yield dict(
+                timeline=max(int(comment.getAttribute('vpos')), 0) * 0.01, 
+                timestamp=int(comment.getAttribute('date')), 
+                no=int(comment.getAttribute('no')), 
+                comment=c, 
+                pos=pos, 
+                color=color, 
+                size=size, 
+                height=(c.count('\n') + 1) * size, 
+                width=CalculateLength(c) * size, 
+                is_aa=is_aa
+                )
         except (AssertionError, AttributeError, IndexError, TypeError, ValueError):
             logging.warning(_('Invalid comment: %s') % comment.toxml())
             continue
@@ -131,23 +142,27 @@ def ProcessComments(comments, f, width, height, bottomReserved, fontface, fontsi
     for idx, i in enumerate(comments):
         if progress_callback and idx % 1000 == 0:
             progress_callback(idx, len(comments))
-        if isinstance(i[4], int):
+        if isinstance(i['pos'], int):
             skip = False
             for filter_regex in filters_regex:
-                if filter_regex and filter_regex.search(i[3]):
+                if filter_regex and filter_regex.search(i['comment']):
                     skip = True
                     break
             if skip:
                 continue
             row = 0
-            rowmax = height - bottomReserved - i[7]
-            if i[9]:
-                # print('This is AA. Force row 0.')
-                WriteComment(f, i, 0, width, height, bottomReserved, 15, duration_marquee, duration_still, 'aa')
+            rowmax = height - bottomReserved - i['height']
+            if i['is_aa']:
+                text = i['comment'].split('\n')
+                for t in text:                
+                    i2 = i.copy()
+                    i2['comment'] = t
+                    WriteComment(f, i2, row, width, height, bottomReserved, 10, duration_marquee, duration_still, 'aa')
+                    row += 9
             else:  
                 while row <= rowmax:
                     freerows = TestFreeRows(rows, i, row, width, height, bottomReserved, duration_marquee, duration_still)
-                    if freerows >= i[7]:
+                    if freerows >= i['height']:
                         MarkCommentRow(rows, i, row)
                         WriteComment(f, i, row, width, height, bottomReserved, fontsize, duration_marquee, duration_still, styleid)
                         break
@@ -159,7 +174,7 @@ def ProcessComments(comments, f, width, height, bottomReserved, fontface, fontsi
                         MarkCommentRow(rows, i, row)
                         WriteComment(f, i, row, width, height, bottomReserved, fontsize, duration_marquee, duration_still, styleid)
         else:
-            logging.warning(_('Invalid comment: %r') % i[3])
+            logging.warning(_('Invalid comment: %r') % i['comment'])
     if progress_callback:
         progress_callback(len(comments), len(comments))
 
@@ -168,24 +183,24 @@ def TestFreeRows(rows, c, row, width, height, bottomReserved, duration_marquee, 
     res = 0
     rowmax = height - bottomReserved
     targetRow = None
-    if c[4] in (1, 2):
-        while row < rowmax and res < c[7]:
-            if targetRow != rows[c[4]][row]:
-                targetRow = rows[c[4]][row]
-                if targetRow and targetRow[0] + duration_still > c[0]:
+    if c['pos'] in (1, 2):
+        while row < rowmax and res < c['height']:
+            if targetRow != rows[c['pos']][row]:
+                targetRow = rows[c['pos']][row]
+                if targetRow and targetRow[0] + duration_still > c['timeline']:
                     break
             row += 1
             res += 1
     else:
         try:
-            thresholdTime = c[0] - duration_marquee * (1 - width / (c[8] + width))
+            thresholdTime = c['timeline'] - duration_marquee * (1 - width / (c['width'] + width))
         except ZeroDivisionError:
-            thresholdTime = c[0] - duration_marquee
-        while row < rowmax and res < c[7]:
-            if targetRow != rows[c[4]][row]:
-                targetRow = rows[c[4]][row]
+            thresholdTime = c['timeline'] - duration_marquee
+        while row < rowmax and res < c['height']:
+            if targetRow != rows[c['pos']][row]:
+                targetRow = rows[c['pos']][row]
                 try:
-                    if targetRow and (targetRow[0] > thresholdTime or targetRow[0] + targetRow[8] * duration_marquee / (targetRow[8] + width) > c[0]):
+                    if targetRow and (targetRow['timeline'] > thresholdTime or targetRow['timeline'] + targetRow['width'] * duration_marquee / (targetRow['width'] + width) > c['timeline']):
                         break
                 except ZeroDivisionError:
                     pass
@@ -196,18 +211,18 @@ def TestFreeRows(rows, c, row, width, height, bottomReserved, duration_marquee, 
 
 def FindAlternativeRow(rows, c, height, bottomReserved):
     res = 0
-    for row in range(height - bottomReserved - math.ceil(c[7])):
-        if not rows[c[4]][row]:
+    for row in range(height - bottomReserved - math.ceil(c['height'])):
+        if not rows[c['pos']][row]:
             return row
-        elif rows[c[4]][row][0] < rows[c[4]][res][0]:
+        elif rows[c['pos']][row][0] < rows[c['pos']][res][0]:
             res = row
     return res
 
 
 def MarkCommentRow(rows, c, row):
     try:
-        for i in range(row, row + math.ceil(c[7])):
-            rows[c[4]][i] = c
+        for i in range(row, row + math.ceil(c['height'])):
+            rows[c['pos']][i] = c
     except IndexError:
         pass
 
@@ -230,7 +245,7 @@ YCbCr Matrix: TV.601
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: %(styleid)s, %(fontface)s, %(fontsize).0f, &H%(alpha)02XFFFFFF, &H%(alpha)02XFFFFFF, &H%(alpha)02X000000, &H%(alpha)02X000000, 0, 0, 0, 0, 100, 100, 0.00, 0.00, 1, %(outline).0f, 0, 7, 0, 0, 0, 0
-Style: aa, 黑体, 10, &H%(alpha)02XFFFFFF, &H%(alpha)02XFFFFFF, &H%(alpha)02X000000, &H%(alpha)02X000000, 0, 0, 0, 0, 100, 100, 0.00, 0.00, 1, 1, 0, 7, 0, 0, 0, 0
+Style: aa, 黑体, 10, &H%(alpha)02XFFFFFF, &H%(alpha)02XFFFFFF, &H%(alpha)02X000000, &H%(alpha)02X000000, 0, 0, 0, 0, 100, 100, 0.00, 0.00, 1, 0, 0, 7, 0, 0, 0, 0
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -239,27 +254,29 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 def WriteComment(f, c, row, width, height, bottomReserved, fontsize, duration_marquee, duration_still, styleid):
-    text = ASSEscape(c[3])
+    text = ASSEscape(c['comment'])
     styles = []
-    if c[4] == 1:
+    if c['pos'] == 1:
         styles.append('\\an8\\pos(%(halfwidth)d, %(row)d)' % {'halfwidth': width / 2, 'row': row})
         duration = duration_still
-    elif c[4] == 2:
+    elif c['pos'] == 2:
         styles.append('\\an2\\pos(%(halfwidth)d, %(row)d)' % {'halfwidth': width / 2, 'row': ConvertType2(row, height, bottomReserved)})
         duration = duration_still
-    elif c[4] == 3:
-        styles.append('\\move(%(neglen)d, %(row)d, %(width)d, %(row)d)' % {'width': width, 'row': row, 'neglen': -math.ceil(c[8])})
+    elif c['pos'] == 3:
+        styles.append('\\move(%(neglen)d, %(row)d, %(width)d, %(row)d)' % {'width': width, 'row': row, 'neglen': -math.ceil(c['width'])})
         duration = duration_marquee
     else:
-        styles.append('\\move(%(width)d, %(row)d, %(neglen)d, %(row)d)' % {'width': width, 'row': row, 'neglen': -math.ceil(c[8])})
+        styles.append('\\move(%(width)d, %(row)d, %(neglen)d, %(row)d)' % {'width': width, 'row': row, 'neglen': -math.ceil(c['width'])})
         duration = duration_marquee
-    if not (-1 < c[6] - fontsize < 1):
-        styles.append('\\fs%.0f' % c[6])
-    if c[5] != 0xffffff:
-        styles.append('\\c&H%s&' % ConvertColor(c[5]))
-        if c[5] == 0x000000:
+    if styleid == 'aa':
+        styles.append('\\fsp-1')        
+    elif not(-1 < c['size'] - fontsize < 1):
+        styles.append('\\fs%.0f' % c['size'])
+    if c['color'] != 0xffffff:
+        styles.append('\\c&H%s&' % ConvertColor(c['color']))
+        if c['color'] == 0x000000:
             styles.append('\\3c&HFFFFFF&')
-    f.write('Dialogue: 2,%(start)s,%(end)s,%(styleid)s,,0000,0000,0000,,{%(styles)s}%(text)s\n' % {'start': ConvertTimestamp(c[0]), 'end': ConvertTimestamp(c[0] + duration), 'styles': ''.join(styles), 'text': text, 'styleid': styleid})
+    f.write('Dialogue: 2,%(start)s,%(end)s,%(styleid)s,,0000,0000,0000,,{%(styles)s}%(text)s\n' % {'start': ConvertTimestamp(c['timeline']), 'end': ConvertTimestamp(c['timeline'] + duration), 'styles': ''.join(styles), 'text': text, 'styleid': styleid})
 
 
 def ASSEscape(s):
@@ -388,7 +405,7 @@ def ReadComments(input_files, font_size=25.0, progress_callback=None):
             comments.extend(ReadCommentsNiconico(FilterBadChars(str_io), font_size))
     if progress_callback:
         progress_callback(len(input_files), len(input_files))
-    comments.sort()
+    comments.sort(key=lambda c: tuple(c.values()))
     return comments
 
 
