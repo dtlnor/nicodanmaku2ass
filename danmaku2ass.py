@@ -98,21 +98,22 @@ def ProbeCommentFormat(f):
 # Output:
 #     yield a tuple:
 #         (timeline, timestamp, no, comment, pos, color, size, height, width)
-#     timeline:  The position when the comment is replayed
-#     timestamp: The UNIX timestamp when the comment is submitted
-#     no:        A sequence of 1, 2, 3, ..., used for sorting
-#     comment:   The content of the comment
-#     pos:       0 for regular moving comment,
+#     0 timeline:  The position when the comment is replayed
+#     1 timestamp: The UNIX timestamp when the comment is submitted
+#     2 no:        A sequence of 1, 2, 3, ..., used for sorting
+#     3 comment:   The content of the comment
+#     4 pos:       0 for regular moving comment,
 #                1 for bottom centered comment,
 #                2 for top centered comment,
 #                3 for reversed moving comment
-#     color:     Font color represented in 0xRRGGBB,
+#     5 color:     Font color represented in 0xRRGGBB,
 #                e.g. 0xffffff for white
-#     size:      Font size
-#     height:    The estimated height in pixels
+#     6 size:      Font size
+#     7 height:    The estimated height in pixels
 #                i.e. (comment.count('\n')+1)*size
-#     width:     The estimated width in pixels
+#     8 width:     The estimated width in pixels
 #                i.e. CalculateLength(comment)*size
+#     9 is_aa:    Check if it is AA
 #
 # After implementing ReadComments****, make sure to update ProbeCommentFormat
 # and CommentFormatMap.
@@ -131,6 +132,8 @@ def ReadCommentsNiconico(f, fontsize):
             pos = 0
             color = 0xffffff
             size = fontsize
+            color_important = 0            
+            is_aa = False
             for mailstyle in str(comment.getAttribute('mail')).split():
                 if mailstyle == 'ue':
                     pos = 1
@@ -140,9 +143,17 @@ def ReadCommentsNiconico(f, fontsize):
                     size = fontsize * 1.44
                 elif mailstyle == 'small':
                     size = fontsize * 0.64
+                elif re.match(r'#[0-9A-Fa-f]{6}', mailstyle):
+                    color_important = int(mailstyle.replace('#', '0x'), 16) + 0x200
                 elif mailstyle in NiconicoColorMap:
                     color = NiconicoColorMap[mailstyle]
-            yield (max(int(comment.getAttribute('vpos')), 0) * 0.01, int(comment.getAttribute('date')), int(comment.getAttribute('no')), c, pos, color, size, (c.count('\n') + 1) * size, CalculateLength(c) * size)
+                elif mailstyle == 'gothic':
+                    is_aa = True
+            if color_important:
+                color = color_important
+            if is_aa:
+                size = 10
+            yield (max(int(comment.getAttribute('vpos')), 0) * 0.01, int(comment.getAttribute('date')), int(comment.getAttribute('no')), c, pos, color, size, (c.count('\n') + 1) * size, CalculateLength(c) * size, is_aa)
         except (AssertionError, AttributeError, IndexError, TypeError, ValueError):
             logging.warning(_('Invalid comment: %s') % comment.toxml())
             continue
@@ -529,19 +540,23 @@ def ProcessComments(comments, f, width, height, bottomReserved, fontface, fontsi
                 continue
             row = 0
             rowmax = height - bottomReserved - i[7]
-            while row <= rowmax:
-                freerows = TestFreeRows(rows, i, row, width, height, bottomReserved, duration_marquee, duration_still)
-                if freerows >= i[7]:
-                    MarkCommentRow(rows, i, row)
-                    WriteComment(f, i, row, width, height, bottomReserved, fontsize, duration_marquee, duration_still, styleid)
-                    break
+            if i[9]:
+                print('This is AA. Force row 0.')
+                WriteComment(f, i, 0, width, height, bottomReserved, 15, duration_marquee, duration_still, 'aa')
+            else:  
+                while row <= rowmax:
+                    freerows = TestFreeRows(rows, i, row, width, height, bottomReserved, duration_marquee, duration_still)
+                    if freerows >= i[7]:
+                        MarkCommentRow(rows, i, row)
+                        WriteComment(f, i, row, width, height, bottomReserved, fontsize, duration_marquee, duration_still, styleid)
+                        break
+                    else:
+                        row += freerows or 1
                 else:
-                    row += freerows or 1
-            else:
-                if not reduced:
-                    row = FindAlternativeRow(rows, i, height, bottomReserved)
-                    MarkCommentRow(rows, i, row)
-                    WriteComment(f, i, row, width, height, bottomReserved, fontsize, duration_marquee, duration_still, styleid)
+                    if not reduced:
+                        row = FindAlternativeRow(rows, i, height, bottomReserved)
+                        MarkCommentRow(rows, i, row)
+                        WriteComment(f, i, row, width, height, bottomReserved, fontsize, duration_marquee, duration_still, styleid)
         elif i[4] == 'bilipos':
             WriteCommentBilibiliPositioned(f, i, width, height, styleid)
         elif i[4] == 'acfunpos':
@@ -618,6 +633,7 @@ YCbCr Matrix: TV.601
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: %(styleid)s, %(fontface)s, %(fontsize).0f, &H%(alpha)02XFFFFFF, &H%(alpha)02XFFFFFF, &H%(alpha)02X000000, &H%(alpha)02X000000, 0, 0, 0, 0, 100, 100, 0.00, 0.00, 1, %(outline).0f, 0, 7, 0, 0, 0, 0
+Style: aa, 黑体, 10, &H%(alpha)02XFFFFFF, &H%(alpha)02XFFFFFF, &H%(alpha)02X000000, &H%(alpha)02X000000, 0, 0, 0, 0, 100, 100, 0.00, 0.00, 1, 1, 0, 7, 0, 0, 0, 0
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -803,7 +819,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--format', metavar=_('FORMAT'), help=_('Format of input file (autodetect|%s) [default: autodetect]') % '|'.join(i for i in CommentFormatMap), default='autodetect')
     parser.add_argument('-o', '--output', metavar=_('OUTPUT'), help=_('Output file'))
-    parser.add_argument('-s', '--size', metavar=_('WIDTHxHEIGHT'), required=True, help=_('Stage size in pixels'))
+    parser.add_argument('-s', '--size', metavar=_('WIDTHxHEIGHT'), help=_('Stage size in pixels'), default='683x384')
     parser.add_argument('-fn', '--font', metavar=_('FONT'), help=_('Specify font face [default: %s]') % _('(FONT) sans-serif')[7:], default=_('(FONT) sans-serif')[7:])
     parser.add_argument('-fs', '--fontsize', metavar=_('SIZE'), help=(_('Default font size [default: %s]') % 25), type=float, default=25.0)
     parser.add_argument('-a', '--alpha', metavar=_('ALPHA'), help=_('Text opacity'), type=float, default=1.0)
