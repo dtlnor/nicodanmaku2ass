@@ -12,17 +12,12 @@
 # Please update to the latest version before complaining.
 
 import argparse
-import calendar
-import gettext
 import io
-import json
 import logging
 import math
-import os
 import random
 import re
 import sys
-import time
 import xml.dom.minidom
 
 
