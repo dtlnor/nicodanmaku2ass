@@ -24,27 +24,6 @@ import xml.dom.minidom
 if sys.version_info < (3,):
     raise RuntimeError('at least Python 3.0 is required')
 
-def SeekZero(function):
-    def decorated_function(file_):
-        file_.seek(0)
-        try:
-            return function(file_)
-        finally:
-            file_.seek(0)
-    return decorated_function
-
-
-def EOFAsNone(function):
-    def decorated_function(*args, **kwargs):
-        try:
-            return function(*args, **kwargs)
-        except EOFError:
-            return None
-    return decorated_function
-
-
-
-#
 # ReadComments**** protocol
 #
 # Input:
@@ -73,8 +52,6 @@ def EOFAsNone(function):
 #
 # After implementing ReadComments****, make sure to update ProbeCommentFormat
 # and CommentFormatMap.
-#
-
 
 def ReadCommentsNiconico(f, fontsize):
     NiconicoColorMap = {'red': 0xff0000, 'pink': 0xff8080, 'orange': 0xffcc00, 'yellow': 0xffff00, 'green': 0x00ff00, 'cyan': 0x00ffff, 'blue': 0x0000ff, 'purple': 0xc000ff, 'black': 0x000000, 'niconicowhite': 0xcccc99, 'white2': 0xcccc99, 'truered': 0xcc0033, 'red2': 0xcc0033, 'passionorange': 0xff6600, 'orange2': 0xff6600, 'madyellow': 0x999900, 'yellow2': 0x999900, 'elementalgreen': 0x00cc66, 'green2': 0x00cc66, 'marineblue': 0x33ffcc, 'blue2': 0x33ffcc, 'nobleviolet': 0x6633cc, 'purple2': 0x6633cc}
@@ -124,7 +101,6 @@ def ReadCommentsNiconico(f, fontsize):
         except (AssertionError, AttributeError, IndexError, TypeError, ValueError):
             logging.warning('Invalid comment: %s' % comment.toxml())
             continue
-
 
 
 def ProcessComments(comments, f, width, height, bottomReserved, fontface, fontsize, alpha, duration_marquee, duration_still, filters_regex, reduced, progress_callback):
