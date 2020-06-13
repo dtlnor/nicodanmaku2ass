@@ -104,6 +104,7 @@ def ReadCommentsNiconico(f, fontsize):
 
 
 def ProcessComments(comments, f, width, height, bottomReserved, fontface, fontsize, alpha, duration_marquee, duration_still, filters_regex, reduced, progress_callback):
+    # TODO: make different font sizes use different styles, instead of using \fs    
     styleid = 'Danmaku2ASS_%04x' % random.randint(0, 0xffff)
     WriteASSHead(f, width, height, fontface, fontsize, alpha, styleid)
     rows = [[None] * (height - bottomReserved + 1) for i in range(4)]
