@@ -76,8 +76,8 @@ def ReadCommentsNiconico(f, fontsize):
                     size = fontsize * 1.44
                 elif mailstyle == 'small':
                     size = fontsize * 0.64
-                elif re.match(r'#[0-9A-Fa-f]{6}', mailstyle):
-                    color_important = int(mailstyle.replace('#', '0x'), 16) + 0x200
+                elif m := re.match(r'#([0-9A-Fa-f]{6})', mailstyle):
+                    color_important = int(m[1], base=16)
                 elif mailstyle in NiconicoColorMap:
                     color = NiconicoColorMap[mailstyle]
                 elif mailstyle == 'gothic':
