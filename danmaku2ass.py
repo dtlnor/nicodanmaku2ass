@@ -105,7 +105,7 @@ def ReadCommentsNiconico(f, fontsize):
 
 def ProcessComments(comments, f, width, height, bottomReserved, fontface, fontsize, alpha, duration_marquee, duration_still, filters_regex, reduced, progress_callback):
     # TODO: make different font sizes use different styles, instead of using \fs
-    # TODO: remove  width and height and fix it on 683x384
+    # TODO: remove width and height and fix it on 683x384
     styleid = 'Danmaku2ASS_%04x' % random.randint(0, 0xffff)
     WriteASSHead(f, width, height, fontface, fontsize, alpha, styleid)
     rows = [[None] * (height - bottomReserved + 1) for i in range(4)]
@@ -210,7 +210,7 @@ Aspect Ratio: %(width)d:%(height)d
 Collisions: Normal
 WrapStyle: 2
 ScaledBorderAndShadow: yes
-YCbCr Matrix: TV.601
+YCbCr Matrix: TV.709
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
@@ -273,24 +273,12 @@ def ConvertTimestamp(timestamp):
     second, centsecond = divmod(second, 100)
     return '%d:%02d:%02d.%02d' % (int(hour), int(minute), int(second), int(centsecond))
 
-# TODO: remoe this shit and just fix it at BT.709 with ass header
-def ConvertColor(RGB, width=1280, height=576):
-    if RGB == 0x000000:
-        return '000000'
-    elif RGB == 0xffffff:
-        return 'FFFFFF'
+
+def ConvertColor(RGB):
     R = (RGB >> 16) & 0xff
     G = (RGB >> 8) & 0xff
     B = RGB & 0xff
-    if width < 1280 and height < 576:
-        return '%02X%02X%02X' % (B, G, R)
-    else:  # VobSub always uses BT.601 colorspace, convert to BT.709
-        ClipByte = lambda x: 255 if x > 255 else 0 if x < 0 else round(x)
-        return '%02X%02X%02X' % (
-            ClipByte(R * 0.00956384088080656 + G * 0.03217254540203729 + B * 0.95826361371715607),
-            ClipByte(R * -0.10493933142075390 + G * 1.17231478191855154 + B * -0.06737545049779757),
-            ClipByte(R * 0.91348912373987645 + G * 0.07858536372532510 + B * 0.00792551253479842)
-        )
+    return '%02X%02X%02X' % (B, G, R)
 
 
 def ConvertType2(row, height, bottomReserved):
